@@ -32,6 +32,7 @@ addpath('functions')
 
 rng(100) % set seed for reproducibility 
 
+% Model parameters:
 a_q = 500; b_q = 0.2; c_q = 800; c_r = 15000; noise = 120; % model parameters
 dataN = 256; % samples in each realization
 T0 = 0; % initial time
@@ -39,12 +40,12 @@ Tf = 0.5; % final time
 delta_t = abs(Tf-T0)/(dataN-1); % sampling interval
 time_vec = T0 + [0:dataN-1]'* delta_t; % vector of times
 
-% t= time_vec;
 fs= 512;
 f0 = 25;  % centre frequency f0 (Hz)
 
-num_real = 100; % number of realizations 
+num_real = 10;%100; % number of realizations 
 
+% simulate realizations:
 [X,X_freq,C,C_freq,R,R_freq,Q] = lsp_f0_sim(num_real,f0,a_q,b_q,c_q,c_r,noise,dataN,time_vec); 
 
 %% 2 - Compute exact Wigner-Ville spectrum (WVS)
@@ -61,14 +62,17 @@ cutSpec = 201; % 100 Hz
 WVS = WVS(:,1:cutSpec,:);
 
 %% 3.i - Hanning window spectrogram (HANN)
-% Optimize window length
+% For HANN: optimization of the window length
+
 win_length = [dataN/16,dataN/8,dataN/4,dataN/2,dataN]; % window lengths considered
-mMSE_HANN_matrix = zeros(length(win_length), num_real); % to store meanMSE computed from several realizations for every window length
+mMSE_HANN_matrix = zeros(length(win_length), num_real); % to store meanMSE computed from several realizations 
+                                                        % for every window length
+                                                        % the  i:th row contains all the MSE for the num_real realizations
 S_HANN = zeros(dataN,nfft/2,num_real,length(win_length)); % to store the spectrograms:
                                                           % S_HANN(:,:,i,j) will be the spectrogram for the i:th realization,
                                                           % computed with window length win_length(j)
 
-for i = 1:length(win_length)
+for i = 1:length(win_length) 
 
     win = win_length(i); % windows length
 
@@ -78,11 +82,8 @@ for i = 1:length(win_length)
         S_HANN(:,:,j,i) = S;        
     end
 
-    SE = abs(S_HANN(:,1:cutSpec,:,i)-WVS).^2;
-    MSE_f = mean(SE,2); % mean on freq
-    MSE = mean(MSE_f,1); % mean on time
-    mMSE_HANN_matrix(i,:) = MSE; % i:th row contains all the MSE for the num_real realizations
-
+    mMSE_HANN_matrix(i,:) = compute_MSE(S_HANN(:,1:cutSpec,:,i),WVS); 
+       
     clear win SE MSE_f MSE  
 
 end
@@ -112,12 +113,8 @@ for i=1:length(num_win)
         S_WOSA(:,:,j,i) = Sw;
         clear y Sw
      end
-
-     SE = abs(S_WOSA(:,1:cutSpec,:,i) - WVS).^2;
-     MSE_f = mean(SE,2); % mean on freq
-     MSE = mean(MSE_f,1); % mean on time
-
-     mMSE_WOSA_matrix(i,:) = MSE; 
+     
+     mMSE_WOSA_matrix(i,:) = compute_MSE(S_WOSA(:,1:cutSpec,:,i),WVS);
 
      clear K SE MSE_f MSE
 end
@@ -147,13 +144,11 @@ num = sum(sum(mean(WV.*WVS,3)));
 den = sum(sum(mean(WV.^2,3))); 
 alpha_WV = num./den;
 
-% Compute and save mean square error 
-SE_WV  = abs(alpha_WV*WV-WVS).^2;
-MSE_f_WV= mean(SE_WV,2); % mean on freq
-MSE_vec_WV = mean(MSE_f_WV,1); % mean on time
+MSE_vec_WV = compute_MSE(alpha_WV*WV,WVS);
 MSE_vec_WV = squeeze(MSE_vec_WV);
 mMSE_WV = mean(MSE_vec_WV); 
-std_MSE_WV = std(MSE_vec_WV);
+
+% std_MSE_WV = std(MSE_vec_WV);
 
 %%	3.iv and 3.v - LSP optimal kernel with true parameters (LSP) and LSP optimal kernel with estimated	parameters (LSP-HATS)
  
@@ -199,16 +194,12 @@ for j = 1:num_real
 end
 
 % Compute and save mean square error (LSP true par)
-SE_true_par = abs(S_LSP_true_par(:,1:cutSpec,:)-WVS).^2;
-MSE_true_par_f = mean(SE_true_par,2); % mean on freq
-MSE_LSP_true_par = mean(MSE_true_par_f,1);  % mean on time
+MSE_LSP_true_par = compute_MSE(S_LSP_true_par(:,1:cutSpec,:),WVS);
 mMSE_LSP_true_par = mean(MSE_LSP_true_par); % mean on the realizations
 std_MSE_LSP_true_par = std(MSE_LSP_true_par); % std on the realizations
 
 % Compute and save mean square error (LSP HATS)
-SE_HATS = abs(S_LSP_HATS(:,1:cutSpec,:)-WVS).^2;
-MSE_f_HATS = mean(SE_HATS,2); % mean on freq
-MSE_LSP_HATS = mean(MSE_f_HATS,1);  % mean on time
+MSE_LSP_HATS = compute_MSE(S_LSP_HATS(:,1:cutSpec,:),WVS);
 mMSE_LSP_HATS = mean(MSE_LSP_HATS); % mean on the realizations
 std_MSE_LSP_HATS = std(MSE_LSP_HATS); % std on the realizations
 
@@ -236,10 +227,7 @@ den_CWT = sum(sum(mean(CWT.^2,3)));
 alpha_CWT = num_CWT./den_CWT;
 
 % Compute and save mean square error 
-SE_CWT  = abs(alpha_CWT*CWT-WVS).^2;
-
-MSE_f_CWT= mean(SE_CWT,2); % mean on freq
-MSE_vec_CWT = mean(MSE_f_CWT,1); % mean on time
+MSE_vec_CWT = compute_MSE(alpha_CWT*CWT,WVS);
 MSE_vec_CWT = squeeze(MSE_vec_CWT);
 mMSE_CWT = mean(MSE_vec_CWT); 
 std_MSE_CWT = std(MSE_vec_CWT);

@@ -1,0 +1,16 @@
+
+function MSE = compute_MSE(S_est,WVS)
+
+% Input:
+% S_est: spectrum estimate
+% WVS: true Wigner-Ville Spectrum
+
+% Output:
+% MSE: mean square error 
+
+SE = abs(S_est-WVS).^2;
+MSE_f = mean(SE,2); % mean on freq
+% MSE_f = squeeze(MSE_vec_WV);
+MSE = mean(MSE_f,1); % mean on time
+
+end
