@@ -43,7 +43,7 @@ time_vec = T0 + [0:dataN-1]'* delta_t; % vector of times
 fs= 512;
 f0 = 25;  % centre frequency f0 (Hz)
 
-num_real = 10;%100; % number of realizations 
+num_real = 100; % number of realizations 
 
 % simulate realizations:
 [X,X_freq,C,C_freq,R,R_freq,Q] = lsp_f0_sim(num_real,f0,a_q,b_q,c_q,c_r,noise,dataN,time_vec); 
