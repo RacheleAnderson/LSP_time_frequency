@@ -12,8 +12,8 @@
 %	3.i     - Hanning window spectrogram (HANN)
 %	3.ii    - Welch method with 50% window overlap (WOSA)
 %   3.iii   - classical Wigner-Wille spectrum estimate (WV)   
-%	3.iv    - LSP optimal kernel with true parameters (LSP)
-%	3.v     - LSP optimal kernel with estimated	parameters (LSP-HATS)
+%	3.iv    - optimal LSP kernel with true parameters (LSP)
+%	3.v     - optimal LSP kernel with estimated	parameters (LSP-HATS)
 %   3.vi    - Continuous wavelet transform with Morlet wavelet (CWT) 
 
 % Each method is optimized to evaluate it at its best performance in terms of MSE:
@@ -22,6 +22,7 @@
 % - for WV and CWV we adjust the estimated magnitude with an optimized scaling
 % parameter
 
+% Matlab toolboxes used: Symbolic Math Toolbox, Wavelet Toolbox 
 % -------------------------------------------------------------------------
 % Copyright Anderson, R., Sandsten, M.
 
@@ -30,7 +31,9 @@ addpath('functions')
 
 %% 1 - Simulate LSP realizations 
 
-rng(100) % set seed for reproducibility 
+num_real = 100; % number of realizations % change to a smaller number (e.g. 10) for quicker results
+
+rng(50) % set seed for reproducibility 
 
 % Model parameters:
 a_q = 500; b_q = 0.2; c_q = 800; c_r = 15000; noise = 120; % model parameters
@@ -43,14 +46,12 @@ time_vec = T0 + [0:dataN-1]'* delta_t; % vector of times
 fs= 512;
 f0 = 25;  % centre frequency f0 (Hz)
 
-num_real = 100; % number of realizations 
-
 % simulate realizations:
 [X,X_freq,C,C_freq,R,R_freq,Q] = lsp_f0_sim(num_real,f0,a_q,b_q,c_q,c_r,noise,dataN,time_vec); 
 
 %% 2 - Compute exact Wigner-Ville spectrum (WVS)
 
-nfft= 1024;
+nfft = 1024;
 [WVSshift,TI,FI,W0] = WVshifted_LSP(noise,a_q,b_q,c_q,c_r,dataN,f0,fs,nfft);
 WVS = repmat(WVSshift,1,1,num_real);
 
@@ -74,7 +75,7 @@ S_HANN = zeros(dataN,nfft/2,num_real,length(win_length)); % to store the spectro
 
 for i = 1:length(win_length) 
 
-    win = win_length(i); % windows length
+    win = win_length(i); % window length
 
     for j = 1:num_real 
         y = X_freq(:,j);
